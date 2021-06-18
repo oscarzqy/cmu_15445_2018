@@ -6,6 +6,10 @@ endif()
 # ---[ SQLite_VTable project
 project(SQLite_VTable CXX C)
 
+set(CMAKE_BUILD_TYPE Debug)
+
+enable_testing()
+
 # ---[ CTest
 include(CTest)
 
