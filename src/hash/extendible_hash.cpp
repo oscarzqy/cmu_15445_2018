@@ -38,7 +38,8 @@ int ExtendibleHash<K, V>::GetGlobalDepth() const {
  * NOTE: you must implement this function in order to pass test
  */
 template <typename K, typename V>
-int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
+int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) {
+  std::lock_guard<std::mutex> lk(mutex_);
   if (bucket_id >= (int)buckets_.size() || bucket_id < 0) {
     std::cerr << "bucket_id out of range" << std::endl;
     return -1;
@@ -70,6 +71,8 @@ int ExtendibleHash<K, V>::GetBucketIndex(const K &key) const {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
+  std::lock_guard<std::mutex> lk(mutex_);
+
   int index = GetBucketIndex(key);
   if (buckets_[index]->data.count(key)) {
     value = buckets_[index]->data[key];
@@ -84,6 +87,8 @@ bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Remove(const K &key) {
+  std::lock_guard<std::mutex> lk(mutex_);
+
   int index = GetBucketIndex(key);
   auto &data = buckets_[index]->data;
   auto it = data.find(key);
@@ -100,6 +105,8 @@ bool ExtendibleHash<K, V>::Remove(const K &key) {
  */
 template <typename K, typename V>
 void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
+  std::lock_guard<std::mutex> lk(mutex_);
+
   int index = GetBucketIndex(key);
   auto bucket = buckets_[index];
   if ((int)bucket->data.size() < max_bucket_size_) {

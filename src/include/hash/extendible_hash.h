@@ -15,6 +15,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <memory>
+#include <mutex>
 
 #include "hash/hash_table.h"
 
@@ -37,7 +38,7 @@ public:
   size_t HashKey(const K &key) const;
   // helper function to get global & local depth
   int GetGlobalDepth() const;
-  int GetLocalDepth(int bucket_id) const;
+  int GetLocalDepth(int bucket_id);
   int GetNumBuckets() const;
   // lookup and modifier
   bool Find(const K &key, V &value) override;
@@ -48,6 +49,7 @@ private:
   // add your own member variables here€
   int global_depth_{};
   int max_bucket_size_{};
+  std::mutex mutex_;
   std::vector<std::shared_ptr<bucket_t>> buckets_;
 
   int GetBucketIndex(const K &key) const;
