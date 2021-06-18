@@ -1,5 +1,6 @@
 #include <list>
 #include <functional>
+#include <iostream>
 #include "hash/extendible_hash.h"
 #include "page/page.h"
 
@@ -12,7 +13,7 @@ namespace cmudb {
 template <typename K, typename V>
 ExtendibleHash<K, V>::ExtendibleHash(size_t size) : global_depth_(0),
   max_bucket_size_(size) {
-  buckets_.push_back(std::make_shared<bucket_t>());
+  buckets_.push_back(std::make_shared<bucket_t>(0));
 }
 
 /*
@@ -71,6 +72,7 @@ template <typename K, typename V>
 bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
   int index = GetBucketIndex(key);
   if (buckets_[index]->data.count(key)) {
+    value = buckets_[index]->data[key];
     return true;
   }
   return false;
@@ -86,7 +88,7 @@ bool ExtendibleHash<K, V>::Remove(const K &key) {
   auto &data = buckets_[index]->data;
   auto it = data.find(key);
   if (it == data.end()) {
-    return true;
+    return false;
   }
   return data.erase(key);
 }
@@ -99,37 +101,45 @@ bool ExtendibleHash<K, V>::Remove(const K &key) {
 template <typename K, typename V>
 void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
   int index = GetBucketIndex(key);
-  auto &bucket = buckets_[index];
+  auto bucket = buckets_[index];
   if ((int)bucket->data.size() < max_bucket_size_) {
     bucket->data[key] = value;
   } else {
-    bucket->local_depth++;
-    auto new_bucket = std::make_shared<bucket_t>();
-    new_bucket->local_depth = bucket->local_depth;
-    size_t mask = 1 << bucket->local_depth;
-    for (auto it = bucket->data.begin(); it != bucket->data.end();) {
-      size_t last_bit = HashKey(it->first) & mask;
-      if (last_bit) {
-        new_bucket->data[it->first] = it->second;
-        // a trick using lvalue to avoid iterator becoming invalid.
-        bucket->data.erase(it++);
-      } else {
-        it++;
+    while ((int)bucket->data.size() >= max_bucket_size_) {
+      if (bucket->local_depth == global_depth_) {
+        int length = buckets_.size();
+        // little bit different from the tutorial
+        // hash(key) & (1<<bucket->local_depth -1/) will point to the same block
+        // whether those buckets are adjacent dosen't really matter.
+        for (int i = 0; i < length; ++i) {
+          buckets_.push_back(buckets_[i]);
+        }
+        global_depth_++;
       }
-    }
-    if (bucket->local_depth <= global_depth_) {
-      // no need to expand the buckets size.
-      buckets_[index+1] = std::move(new_bucket);
-    } else {
-      global_depth_++;
-      int new_size = 1 << global_depth_;
-      int old_size = new_size >> 1;
-      buckets_.resize(new_size);
-      for (int i = old_size; i >= 0; --i) {
-        buckets_[(i>>1)+1] = buckets_[i>>1] = buckets_[i];
+      size_t mask = 1 << (bucket->local_depth);
+      auto bucket0 = std::make_shared<bucket_t>(bucket->local_depth+1);
+      auto bucket1 = std::make_shared<bucket_t>(bucket->local_depth+1);
+      for (auto &entry : bucket->data) {
+        if (HashKey(entry.first) & mask) {
+          bucket1->data[entry.first] = entry.second;
+        } else {
+          bucket0->data[entry.first] = entry.second;
+        }
       }
-      buckets_[(index>>1) + 1] = new_bucket;
+      for (size_t i = 0; i < buckets_.size(); ++i) {
+        if (buckets_[i] != bucket) {
+          continue;
+        }
+        if (i & mask) {
+          buckets_[i] = bucket1;
+        } else {
+          buckets_[i] = bucket0;
+        }
+      }
+      index = GetBucketIndex(key);
+      bucket = buckets_[index];
     }
+    bucket->data[key] = value;
   }
 }
 

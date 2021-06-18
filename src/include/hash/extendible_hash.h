@@ -27,6 +27,7 @@ class ExtendibleHash : public HashTable<K, V> {
 typedef struct Bucket {
   std::unordered_map<K, V> data;
   int local_depth{};
+  Bucket(int depth) : local_depth(depth) {}
 } bucket_t;
 
 public:
