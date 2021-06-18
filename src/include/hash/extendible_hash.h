@@ -12,18 +12,28 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
+#include <tuple>
+#include <unordered_map>
+#include <memory>
 
 #include "hash/hash_table.h"
 
 namespace cmudb {
 
+
 template <typename K, typename V>
 class ExtendibleHash : public HashTable<K, V> {
+
+typedef struct Bucket {
+  std::unordered_map<K, V> data;
+  int local_depth{};
+} bucket_t;
+
 public:
   // constructor
   ExtendibleHash(size_t size);
   // helper function to generate hash addressing
-  size_t HashKey(const K &key);
+  size_t HashKey(const K &key) const;
   // helper function to get global & local depth
   int GetGlobalDepth() const;
   int GetLocalDepth(int bucket_id) const;
@@ -34,6 +44,11 @@ public:
   void Insert(const K &key, const V &value) override;
 
 private:
-  // add your own member variables here
+  // add your own member variables here€
+  int global_depth_{};
+  int max_bucket_size_{};
+  std::vector<std::shared_ptr<bucket_t>> buckets_;
+
+  int GetBucketIndex(const K &key) const;
 };
 } // namespace cmudb
