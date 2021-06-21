@@ -37,6 +37,10 @@ public:
   inline lsn_t GetLSN() { return *reinterpret_cast<lsn_t *>(GetData() + 4); }
   inline void SetLSN(lsn_t lsn) { memcpy(GetData() + 4, &lsn, 4); }
 
+  inline bool Dirty() const { return is_dirty_; }
+  inline void Pin() { pin_count_++; }
+  inline void UnPin() { pin_count_--; }
+
 private:
   // method used by buffer pool manager
   inline void ResetMemory() { memset(data_, 0, PAGE_SIZE); }
